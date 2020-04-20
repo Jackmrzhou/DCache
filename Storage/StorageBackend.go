@@ -1,4 +1,4 @@
-package StorageService
+package Storage
 
 import (
 	"Puzzle/conf"
@@ -8,6 +8,8 @@ import (
 type StorageBackend interface {
 	Set(key,value string, ex int64) error
 	Get(key string) (string, error)
+	HSet(key, field, value string) error
+	HGetAll(key string) (map[string]string, error)
 }
 
 func NewRedisBackend(conf *conf.Config) *redisBackend {

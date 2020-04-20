@@ -2,14 +2,47 @@ syntax = "proto3";
 
 package idl;
 
-service CacheService{
-    rpc Ping(PingRequest) returns(PingResponse) {}
+option java_package = "org.gilmour.coprocessor.CacheService";
+
+
+service CacheService {
+    rpc Ping (PingRequest) returns (PingResponse) {}
+    rpc SetValues (SetValuesRequest) returns (SetValuesResponse) {}
+    rpc GetRow (GetRowRequest) returns (GetRowResponse) {}
 }
 
-message  PingRequest{
+message PingRequest {
     string payload = 1;
 }
 
-message PingResponse{
+message PingResponse {
     string message = 1;
+}
+
+message HCell {
+    bytes row = 1;
+    bytes columnFamily = 2;
+    bytes column = 3;
+    bytes value = 4;
+    int64 timestamp = 5;
+    int32 type = 6;
+}
+
+message SetValuesRequest {
+    repeated HCell cells = 1;
+}
+
+message SetValuesResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+message GetRowRequest {
+    bytes key = 1;
+}
+
+message GetRowResponse {
+    int32 code = 1;
+    repeated HCell result = 2;
+    string message = 3;
 }

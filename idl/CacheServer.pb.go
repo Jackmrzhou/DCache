@@ -102,9 +102,273 @@ func (m *PingResponse) GetMessage() string {
 	return ""
 }
 
+type HCell struct {
+	Row                  []byte   `protobuf:"bytes,1,opt,name=row,proto3" json:"row,omitempty"`
+	ColumnFamily         []byte   `protobuf:"bytes,2,opt,name=columnFamily,proto3" json:"columnFamily,omitempty"`
+	Column               []byte   `protobuf:"bytes,3,opt,name=column,proto3" json:"column,omitempty"`
+	Value                []byte   `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
+	Timestamp            int64    `protobuf:"varint,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Type                 int32    `protobuf:"varint,6,opt,name=type,proto3" json:"type,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *HCell) Reset()         { *m = HCell{} }
+func (m *HCell) String() string { return proto.CompactTextString(m) }
+func (*HCell) ProtoMessage()    {}
+func (*HCell) Descriptor() ([]byte, []int) {
+	return fileDescriptor_5a35d0e66a2c0854, []int{2}
+}
+
+func (m *HCell) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_HCell.Unmarshal(m, b)
+}
+func (m *HCell) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_HCell.Marshal(b, m, deterministic)
+}
+func (m *HCell) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HCell.Merge(m, src)
+}
+func (m *HCell) XXX_Size() int {
+	return xxx_messageInfo_HCell.Size(m)
+}
+func (m *HCell) XXX_DiscardUnknown() {
+	xxx_messageInfo_HCell.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_HCell proto.InternalMessageInfo
+
+func (m *HCell) GetRow() []byte {
+	if m != nil {
+		return m.Row
+	}
+	return nil
+}
+
+func (m *HCell) GetColumnFamily() []byte {
+	if m != nil {
+		return m.ColumnFamily
+	}
+	return nil
+}
+
+func (m *HCell) GetColumn() []byte {
+	if m != nil {
+		return m.Column
+	}
+	return nil
+}
+
+func (m *HCell) GetValue() []byte {
+	if m != nil {
+		return m.Value
+	}
+	return nil
+}
+
+func (m *HCell) GetTimestamp() int64 {
+	if m != nil {
+		return m.Timestamp
+	}
+	return 0
+}
+
+func (m *HCell) GetType() int32 {
+	if m != nil {
+		return m.Type
+	}
+	return 0
+}
+
+type SetValuesRequest struct {
+	Cells                []*HCell `protobuf:"bytes,1,rep,name=cells,proto3" json:"cells,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *SetValuesRequest) Reset()         { *m = SetValuesRequest{} }
+func (m *SetValuesRequest) String() string { return proto.CompactTextString(m) }
+func (*SetValuesRequest) ProtoMessage()    {}
+func (*SetValuesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_5a35d0e66a2c0854, []int{3}
+}
+
+func (m *SetValuesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SetValuesRequest.Unmarshal(m, b)
+}
+func (m *SetValuesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SetValuesRequest.Marshal(b, m, deterministic)
+}
+func (m *SetValuesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SetValuesRequest.Merge(m, src)
+}
+func (m *SetValuesRequest) XXX_Size() int {
+	return xxx_messageInfo_SetValuesRequest.Size(m)
+}
+func (m *SetValuesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_SetValuesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SetValuesRequest proto.InternalMessageInfo
+
+func (m *SetValuesRequest) GetCells() []*HCell {
+	if m != nil {
+		return m.Cells
+	}
+	return nil
+}
+
+type SetValuesResponse struct {
+	Code                 int32    `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Message              string   `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *SetValuesResponse) Reset()         { *m = SetValuesResponse{} }
+func (m *SetValuesResponse) String() string { return proto.CompactTextString(m) }
+func (*SetValuesResponse) ProtoMessage()    {}
+func (*SetValuesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_5a35d0e66a2c0854, []int{4}
+}
+
+func (m *SetValuesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SetValuesResponse.Unmarshal(m, b)
+}
+func (m *SetValuesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SetValuesResponse.Marshal(b, m, deterministic)
+}
+func (m *SetValuesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SetValuesResponse.Merge(m, src)
+}
+func (m *SetValuesResponse) XXX_Size() int {
+	return xxx_messageInfo_SetValuesResponse.Size(m)
+}
+func (m *SetValuesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_SetValuesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SetValuesResponse proto.InternalMessageInfo
+
+func (m *SetValuesResponse) GetCode() int32 {
+	if m != nil {
+		return m.Code
+	}
+	return 0
+}
+
+func (m *SetValuesResponse) GetMessage() string {
+	if m != nil {
+		return m.Message
+	}
+	return ""
+}
+
+type GetRowRequest struct {
+	Key                  []byte   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GetRowRequest) Reset()         { *m = GetRowRequest{} }
+func (m *GetRowRequest) String() string { return proto.CompactTextString(m) }
+func (*GetRowRequest) ProtoMessage()    {}
+func (*GetRowRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_5a35d0e66a2c0854, []int{5}
+}
+
+func (m *GetRowRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetRowRequest.Unmarshal(m, b)
+}
+func (m *GetRowRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetRowRequest.Marshal(b, m, deterministic)
+}
+func (m *GetRowRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetRowRequest.Merge(m, src)
+}
+func (m *GetRowRequest) XXX_Size() int {
+	return xxx_messageInfo_GetRowRequest.Size(m)
+}
+func (m *GetRowRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetRowRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetRowRequest proto.InternalMessageInfo
+
+func (m *GetRowRequest) GetKey() []byte {
+	if m != nil {
+		return m.Key
+	}
+	return nil
+}
+
+type GetRowResponse struct {
+	Code                 int32    `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Result               []*HCell `protobuf:"bytes,2,rep,name=result,proto3" json:"result,omitempty"`
+	Message              string   `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GetRowResponse) Reset()         { *m = GetRowResponse{} }
+func (m *GetRowResponse) String() string { return proto.CompactTextString(m) }
+func (*GetRowResponse) ProtoMessage()    {}
+func (*GetRowResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_5a35d0e66a2c0854, []int{6}
+}
+
+func (m *GetRowResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetRowResponse.Unmarshal(m, b)
+}
+func (m *GetRowResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetRowResponse.Marshal(b, m, deterministic)
+}
+func (m *GetRowResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetRowResponse.Merge(m, src)
+}
+func (m *GetRowResponse) XXX_Size() int {
+	return xxx_messageInfo_GetRowResponse.Size(m)
+}
+func (m *GetRowResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetRowResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetRowResponse proto.InternalMessageInfo
+
+func (m *GetRowResponse) GetCode() int32 {
+	if m != nil {
+		return m.Code
+	}
+	return 0
+}
+
+func (m *GetRowResponse) GetResult() []*HCell {
+	if m != nil {
+		return m.Result
+	}
+	return nil
+}
+
+func (m *GetRowResponse) GetMessage() string {
+	if m != nil {
+		return m.Message
+	}
+	return ""
+}
+
 func init() {
 	proto.RegisterType((*PingRequest)(nil), "idl.PingRequest")
 	proto.RegisterType((*PingResponse)(nil), "idl.PingResponse")
+	proto.RegisterType((*HCell)(nil), "idl.HCell")
+	proto.RegisterType((*SetValuesRequest)(nil), "idl.SetValuesRequest")
+	proto.RegisterType((*SetValuesResponse)(nil), "idl.SetValuesResponse")
+	proto.RegisterType((*GetRowRequest)(nil), "idl.GetRowRequest")
+	proto.RegisterType((*GetRowResponse)(nil), "idl.GetRowResponse")
 }
 
 func init() {
@@ -112,17 +376,32 @@ func init() {
 }
 
 var fileDescriptor_5a35d0e66a2c0854 = []byte{
-	// 145 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x74, 0x4e, 0x4c, 0xce,
-	0x48, 0x0d, 0x4e, 0x2d, 0x2a, 0x4b, 0x2d, 0xd2, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0xce,
-	0x4c, 0xc9, 0x51, 0x52, 0xe7, 0xe2, 0x0e, 0xc8, 0xcc, 0x4b, 0x0f, 0x4a, 0x2d, 0x2c, 0x4d, 0x2d,
-	0x2e, 0x11, 0x92, 0xe0, 0x62, 0x2f, 0x48, 0xac, 0xcc, 0xc9, 0x4f, 0x4c, 0x91, 0x60, 0x54, 0x60,
-	0xd4, 0xe0, 0x0c, 0x82, 0x71, 0x95, 0x34, 0xb8, 0x78, 0x20, 0x0a, 0x8b, 0x0b, 0xf2, 0xf3, 0x8a,
-	0x53, 0x41, 0x2a, 0x73, 0x53, 0x8b, 0x8b, 0x13, 0xd3, 0x53, 0x61, 0x2a, 0xa1, 0x5c, 0x23, 0x5b,
-	0x2e, 0x1e, 0xb8, 0x65, 0x99, 0xc9, 0xa9, 0x42, 0xba, 0x5c, 0x2c, 0x20, 0x9d, 0x42, 0x02, 0x7a,
-	0x99, 0x29, 0x39, 0x7a, 0x48, 0xb6, 0x49, 0x09, 0x22, 0x89, 0x40, 0x8c, 0x55, 0x62, 0x48, 0x62,
-	0x03, 0xbb, 0xce, 0x18, 0x10, 0x00, 0x00, 0xff, 0xff, 0xbe, 0x78, 0x02, 0x1e, 0xb2, 0x00, 0x00,
-	0x00,
+	// 399 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x52, 0xcd, 0x8e, 0x94, 0x40,
+	0x10, 0x96, 0x61, 0xc0, 0x4c, 0x2d, 0x1a, 0xa6, 0xd4, 0x4d, 0x67, 0xe2, 0x01, 0x3b, 0x46, 0xb9,
+	0xc8, 0x61, 0xd7, 0xa3, 0x17, 0xdd, 0x44, 0x3d, 0x9a, 0xde, 0xc4, 0x3b, 0x0b, 0x15, 0x24, 0xdb,
+	0x4c, 0x63, 0x77, 0xb3, 0x1b, 0x1e, 0xc6, 0x77, 0xf0, 0x11, 0x0d, 0x0d, 0x8c, 0xb0, 0x26, 0xde,
+	0xea, 0xfb, 0x29, 0xba, 0xea, 0xa3, 0x60, 0x7f, 0x95, 0x17, 0x3f, 0xe8, 0x9a, 0xf4, 0x1d, 0xe9,
+	0xac, 0xd5, 0xca, 0x2a, 0xf4, 0xeb, 0x52, 0xf2, 0xb7, 0x70, 0xf6, 0xad, 0x3e, 0x56, 0x82, 0x7e,
+	0x76, 0x64, 0x2c, 0x32, 0x78, 0xdc, 0xe6, 0xbd, 0x54, 0x79, 0xc9, 0xbc, 0xc4, 0x4b, 0x77, 0x62,
+	0x86, 0x3c, 0x85, 0x68, 0x34, 0x9a, 0x56, 0x1d, 0x0d, 0x0d, 0xce, 0x86, 0x8c, 0xc9, 0x2b, 0x9a,
+	0x9d, 0x13, 0xe4, 0xbf, 0x3c, 0x08, 0xbe, 0x5e, 0x91, 0x94, 0x18, 0x83, 0xaf, 0xd5, 0xbd, 0xd3,
+	0x23, 0x31, 0x94, 0xc8, 0x21, 0x2a, 0x94, 0xec, 0x9a, 0xe3, 0xe7, 0xbc, 0xa9, 0x65, 0xcf, 0x36,
+	0x4e, 0x5a, 0x71, 0x78, 0x0e, 0xe1, 0x88, 0x99, 0xef, 0xd4, 0x09, 0xe1, 0x73, 0x08, 0xee, 0x72,
+	0xd9, 0x11, 0xdb, 0x3a, 0x7a, 0x04, 0xf8, 0x12, 0x76, 0xb6, 0x6e, 0xc8, 0xd8, 0xbc, 0x69, 0x59,
+	0x90, 0x78, 0xa9, 0x2f, 0xfe, 0x12, 0x88, 0xb0, 0xb5, 0x7d, 0x4b, 0x2c, 0x4c, 0xbc, 0x34, 0x10,
+	0xae, 0xe6, 0xef, 0x21, 0xbe, 0x26, 0xfb, 0x7d, 0xe8, 0x36, 0xf3, 0xde, 0x09, 0x04, 0x05, 0x49,
+	0x69, 0x98, 0x97, 0xf8, 0xe9, 0xd9, 0x05, 0x64, 0x75, 0x29, 0x33, 0xb7, 0x84, 0x18, 0x05, 0xfe,
+	0x11, 0xf6, 0x8b, 0xae, 0x29, 0x04, 0x84, 0x6d, 0xa1, 0xca, 0x31, 0x81, 0x40, 0xb8, 0x7a, 0x19,
+	0xcc, 0x66, 0x1d, 0xcc, 0x2b, 0x78, 0xf2, 0x85, 0xac, 0x50, 0xf7, 0xf3, 0xab, 0x31, 0xf8, 0xb7,
+	0xd4, 0xcf, 0xf9, 0xdc, 0x52, 0xcf, 0x6f, 0xe0, 0xe9, 0x6c, 0xf9, 0xcf, 0x13, 0x1c, 0x42, 0x4d,
+	0xa6, 0x93, 0x96, 0x6d, 0xfe, 0x19, 0x77, 0x52, 0x96, 0x63, 0xf8, 0xab, 0x31, 0x2e, 0x7e, 0x7b,
+	0x10, 0x9d, 0xae, 0xa1, 0x2e, 0x08, 0xdf, 0xc1, 0x76, 0xf8, 0xb5, 0x18, 0xbb, 0xcf, 0x2c, 0xce,
+	0xe1, 0xb0, 0x5f, 0x30, 0xe3, 0x3c, 0xfc, 0x11, 0x7e, 0x80, 0xdd, 0x29, 0x09, 0x7c, 0xe1, 0x1c,
+	0x0f, 0xf3, 0x3c, 0x9c, 0x3f, 0xa4, 0x4f, 0xdd, 0x97, 0x10, 0x8e, 0x1b, 0x22, 0x3a, 0xcf, 0x2a,
+	0x91, 0xc3, 0xb3, 0x15, 0x37, 0x37, 0x7d, 0x7a, 0x03, 0xaf, 0x95, 0xae, 0xb2, 0xaa, 0x96, 0x8d,
+	0xea, 0x74, 0x56, 0xa8, 0x56, 0xab, 0x82, 0x8c, 0x51, 0x3a, 0x5b, 0x6e, 0x72, 0x13, 0xba, 0xcb,
+	0xbe, 0xfc, 0x13, 0x00, 0x00, 0xff, 0xff, 0x33, 0xc0, 0x19, 0xf3, 0xee, 0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -138,6 +417,8 @@ const _ = grpc.SupportPackageIsVersion6
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type CacheServiceClient interface {
 	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
+	SetValues(ctx context.Context, in *SetValuesRequest, opts ...grpc.CallOption) (*SetValuesResponse, error)
+	GetRow(ctx context.Context, in *GetRowRequest, opts ...grpc.CallOption) (*GetRowResponse, error)
 }
 
 type cacheServiceClient struct {
@@ -157,9 +438,29 @@ func (c *cacheServiceClient) Ping(ctx context.Context, in *PingRequest, opts ...
 	return out, nil
 }
 
+func (c *cacheServiceClient) SetValues(ctx context.Context, in *SetValuesRequest, opts ...grpc.CallOption) (*SetValuesResponse, error) {
+	out := new(SetValuesResponse)
+	err := c.cc.Invoke(ctx, "/idl.CacheService/SetValues", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *cacheServiceClient) GetRow(ctx context.Context, in *GetRowRequest, opts ...grpc.CallOption) (*GetRowResponse, error) {
+	out := new(GetRowResponse)
+	err := c.cc.Invoke(ctx, "/idl.CacheService/GetRow", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CacheServiceServer is the server API for CacheService service.
 type CacheServiceServer interface {
 	Ping(context.Context, *PingRequest) (*PingResponse, error)
+	SetValues(context.Context, *SetValuesRequest) (*SetValuesResponse, error)
+	GetRow(context.Context, *GetRowRequest) (*GetRowResponse, error)
 }
 
 // UnimplementedCacheServiceServer can be embedded to have forward compatible implementations.
@@ -168,6 +469,12 @@ type UnimplementedCacheServiceServer struct {
 
 func (*UnimplementedCacheServiceServer) Ping(ctx context.Context, req *PingRequest) (*PingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Ping not implemented")
+}
+func (*UnimplementedCacheServiceServer) SetValues(ctx context.Context, req *SetValuesRequest) (*SetValuesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetValues not implemented")
+}
+func (*UnimplementedCacheServiceServer) GetRow(ctx context.Context, req *GetRowRequest) (*GetRowResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRow not implemented")
 }
 
 func RegisterCacheServiceServer(s *grpc.Server, srv CacheServiceServer) {
@@ -192,6 +499,42 @@ func _CacheService_Ping_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CacheService_SetValues_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetValuesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CacheServiceServer).SetValues(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/idl.CacheService/SetValues",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CacheServiceServer).SetValues(ctx, req.(*SetValuesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CacheService_GetRow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRowRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CacheServiceServer).GetRow(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/idl.CacheService/GetRow",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CacheServiceServer).GetRow(ctx, req.(*GetRowRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _CacheService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "idl.CacheService",
 	HandlerType: (*CacheServiceServer)(nil),
@@ -199,6 +542,14 @@ var _CacheService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Ping",
 			Handler:    _CacheService_Ping_Handler,
+		},
+		{
+			MethodName: "SetValues",
+			Handler:    _CacheService_SetValues_Handler,
+		},
+		{
+			MethodName: "GetRow",
+			Handler:    _CacheService_GetRow_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

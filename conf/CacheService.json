@@ -1,0 +1,7 @@
+{
+  "service": {
+    "id": "cs1",
+    "name": "CacheService",
+    "port": 9988
+  }
+}

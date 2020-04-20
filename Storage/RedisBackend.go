@@ -1,4 +1,4 @@
-package StorageService
+package Storage
 
 import (
 	"github.com/go-redis/redis/v7"
@@ -15,4 +15,12 @@ func (r *redisBackend) Set(key, value string, ex int64) error {
 
 func (r *redisBackend) Get(key string) (string, error) {
 	return r.client.Get(key).Result()
+}
+
+func (r *redisBackend) HSet(key, field, val string) error {
+	return r.client.HSet(key, field, val).Err()
+}
+
+func (r *redisBackend) HGetAll(key string) (map[string]string, error)  {
+	return r.client.HGetAll(key).Result()
 }

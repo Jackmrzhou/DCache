@@ -1,4 +1,4 @@
-package StorageService
+package Storage
 
 import (
 	"Puzzle/conf"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var service *storageService
+var service *StorageService
 
 func TestStorageService_Set(t *testing.T) {
 	err := service.Set("hello", "world", 0)
@@ -15,6 +15,14 @@ func TestStorageService_Set(t *testing.T) {
 	value, err := service.Get("hello")
 	assert.Nil(t, err)
 	assert.Equal(t, value, "world")
+}
+
+func TestStorageService_HSet(t *testing.T) {
+	err := service.HSet("123e", "col", "val")
+	assert.Nil(t, err)
+	res, err := service.HGetAll("123e")
+	assert.Nil(t, err)
+	assert.Equal(t, res, map[string]string{"col": "val"})
 }
 
 
