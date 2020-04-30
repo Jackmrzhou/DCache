@@ -6,6 +6,7 @@ import (
 	pb "Puzzle/idl"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"log"
@@ -23,6 +24,8 @@ func (s *Handler) Ping(ctx context.Context, req *pb.PingRequest) (*pb.PingRespon
 
 func (s *Handler) SetValues(ctx context.Context, req *pb.SetValuesRequest) (*pb.SetValuesResponse, error) {
 	for _, cell := range req.Cells {
+		// todo: check deleted cells
+		// todo: check whether these cells contains stale data(compare timestamp)
 		log.Println("Add cell for:" + string(cell.Row))
 		// encode here
 		timestampBytes := make([]byte, 8)
@@ -32,10 +35,12 @@ func (s *Handler) SetValues(ctx context.Context, req *pb.SetValuesRequest) (*pb.
 		merged := append(timestampBytes, typeBytes...)
 		err := s.HSet(string(append(cell.Row, cell.ColumnFamily...)), string(cell.Column), string(append(cell.Value, merged...)))
 		if err != nil {
-			//todo:rollback all the set values
+			// no need to rollback, client will mark it as stale data
+			fmt.Println(err)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
+	// todo: add all keys to a set
 	return &pb.SetValuesResponse{Code:0, Message:"ok"}, nil
 }
 

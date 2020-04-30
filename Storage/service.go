@@ -1,6 +1,9 @@
 package Storage
 
-import "Puzzle/conf"
+import (
+	"Puzzle/Storage/RaftBased"
+	"Puzzle/conf"
+)
 
 type StorageService struct {
 	StorageBackend
@@ -23,5 +26,9 @@ func (s *StorageService) HGetAll(key string) (map[string]string, error) {
 }
 
 func NewStorageService(conf *conf.Config) *StorageService {
-	return &StorageService{NewRedisBackend(conf)}
+	if !conf.Cluster {
+		return &StorageService{NewRedisBackend(conf)}
+	} else {
+		return &StorageService{RaftBased.NewRaftBackend(conf)}
+	}
 }

@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package idl;
+
+message RaftProposal{
+    repeated bytes cmds = 1;
+}

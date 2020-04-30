@@ -1,4 +1,4 @@
-//go:generate protoc -I ../idl --go_out=plugins=grpc:../idl ../idl/CacheServer.proto
+//go:generate protoc -I idl --go_out=plugins=grpc:idl idl/CacheServer.proto idl/raft.proto
 package main
 
 import (
@@ -6,21 +6,19 @@ import (
 	"Puzzle/Storage"
 	"Puzzle/conf"
 	pb "Puzzle/idl"
+	"github.com/lni/dragonboat/v3/logger"
 	"google.golang.org/grpc"
 	"log"
 	"net"
 )
 
-const (
-	listenPort = ":9988"
-)
-
 func main() {
+	// todo:clear cache on start up
 	config, err := conf.LoadConf("")
 	if err != nil {
 		log.Fatal(err)
 	}
-	lis, err := net.Listen("tcp", listenPort)
+	lis, err := net.Listen("tcp", ":"+config.ServicePort)
 	if err != nil {
 		log.Fatal("fail to listen: " + err.Error())
 	}
@@ -29,6 +27,11 @@ func main() {
 	h := &handler.Handler{StorageService:storageService}
 	pb.RegisterCacheServiceServer(s, h)
 	log.Println("starting service")
+
+	logger.GetLogger("raft").SetLevel(logger.ERROR)
+	logger.GetLogger("rsm").SetLevel(logger.WARNING)
+	logger.GetLogger("transport").SetLevel(logger.WARNING)
+	logger.GetLogger("grpc").SetLevel(logger.WARNING)
 	if err := s.Serve(lis); err != nil {
 		log.Fatal("fail to serve: "+err.Error())
 	}
