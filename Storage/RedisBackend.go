@@ -24,3 +24,11 @@ func (r *redisBackend) HSet(key, field, val string) error {
 func (r *redisBackend) HGetAll(key string) (map[string]string, error)  {
 	return r.client.HGetAll(key).Result()
 }
+
+func (r *redisBackend) HMSet(key string, fields map[string]interface{}) error {
+	return r.client.HMSet(key, fields).Err()
+}
+
+func (r *redisBackend) Close() error {
+	return r.client.Close()
+}

@@ -12,6 +12,7 @@ type RedisConfig struct {
 	Host string `yaml:"host"`
 	Password string `yaml:"password"`
 	RDBLocation string `yaml:"rdb_location"`
+	MaxMemory string `yaml:"max_memory"`
 }
 
 type RaftConfig struct {

@@ -6,10 +6,14 @@ import (
 	"Puzzle/Storage"
 	"Puzzle/conf"
 	pb "Puzzle/idl"
+	"fmt"
 	"github.com/lni/dragonboat/v3/logger"
 	"google.golang.org/grpc"
 	"log"
 	"net"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -32,7 +36,22 @@ func main() {
 	logger.GetLogger("rsm").SetLevel(logger.WARNING)
 	logger.GetLogger("transport").SetLevel(logger.WARNING)
 	logger.GetLogger("grpc").SetLevel(logger.WARNING)
-	if err := s.Serve(lis); err != nil {
-		log.Fatal("fail to serve: "+err.Error())
-	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("recovered panic in main:", r)
+		}
+		storageService.Close()
+	}()
+
+	stopChan := make(chan os.Signal)
+	signal.Notify(stopChan, syscall.SIGTERM, syscall.SIGINT)
+
+	go func() {
+		if err := s.Serve(lis); err != nil {
+			log.Fatal("fail to serve: " + err.Error())
+		}
+	}()
+	<- stopChan
+	s.GracefulStop()
 }

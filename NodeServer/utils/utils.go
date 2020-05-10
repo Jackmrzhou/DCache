@@ -28,6 +28,25 @@ var janusCfMap = map[int]string{
 	SYSTEM_TX_LOG_NAME: "l",
 }
 
+var shortCfSet = map[string]bool {
+	"g": true,
+	"h": true,
+	"i": true,
+	"e": true,
+	"f": true,
+	"s": true,
+	"t": true,
+	"m": true,
+	"l": true,
+}
+
+func CfContains(cf string) bool {
+	if v, ok := shortCfSet[cf]; ok {
+		return v
+	}
+	return false
+}
+
 func GetShortCf(key int) string {
 	if v, ok := janusCfMap[key]; ok {
 		return v

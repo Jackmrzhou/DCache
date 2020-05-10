@@ -14,9 +14,9 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"sync/atomic"
-	"time"
 	"unsafe"
 )
 
@@ -61,6 +61,7 @@ func (rsm *RegionStateMachine)newRedisInstance(RDBPath string) (*conf.RedisConfi
 }
 
 func (rsm *RegionStateMachine) closeRedisInstance(id string) error {
+	log.Println("starting closing the redis instances, ID:", id)
 	return exec.Command("docker", "stop", id).Run()
 }
 
@@ -68,7 +69,7 @@ func NewRegionStateMachine(clusterID uint64, nodeID uint64) sm.IStateMachine {
 	rsm := &RegionStateMachine{
 		clusterID:clusterID,
 		nodeID:nodeID,
-		SnapshotPath:conf.GlobalConf.RedisConf.RDBLocation + strconv.FormatUint(clusterID, 10) + strconv.FormatUint(nodeID, 10),
+		SnapshotPath:conf.GlobalConf.RedisConf.RDBLocation,
 	}
 
 	c, err := rsm.newRedisInstance(conf.GlobalConf.RedisConf.RDBLocation)
@@ -92,16 +93,19 @@ func (rsm *RegionStateMachine) Lookup(query interface{}) (interface{}, error) {
 		switch c[0] {
 		case "GET":
 			return rsm.db.Get(c[1]).Result()
-		case "SET":
-			val, _ := strconv.ParseInt(c[3], 10, 64)
-			return rsm.db.Set(c[1], c[2], time.Duration(val) *time.Second).Result()
-		case "HSET":
-			return rsm.db.HSet(c[1], c[2], c[3], c[4]).Result()
 		case "HGETALL":
 			return rsm.db.HGetAll(c[1]).Result()
+		case "ZCARD":
+			return rsm.db.ZCard(c[1]).Result()
+		}
+	} else if c, ok := query.([]interface{}); ok {
+		cmd := c[0].(string)
+		switch cmd {
+		case "ZRANGE":
+			return rsm.db.ZRange(c[1].(string), c[2].(int64), c[3].(int64)).Result()
 		}
 	}
-	return nil, errors.New("query should be a string slice type")
+	return nil, errors.New("query should be a slice type")
 }
 
 func (rsm *RegionStateMachine) Update(data []byte) (sm.Result, error) {
@@ -131,7 +135,7 @@ func (rsm *RegionStateMachine) SaveSnapshot(w io.Writer,
 	}
 	log.Println("starting creating snapshot")
 	log.Println(res)
-	f, err := os.Open(rsm.SnapshotPath)
+	f, err := os.Open(filepath.Join(rsm.SnapshotPath, "dump.rdb"))
 	if err != nil {
 		return err
 	}

@@ -25,6 +25,10 @@ func (s *StorageService) HGetAll(key string) (map[string]string, error) {
 	return s.StorageBackend.HGetAll(key)
 }
 
+func (s *StorageService) HMSet(key string, fields map[string]interface{}) error {
+	return s.StorageBackend.HMSet(key, fields)
+}
+
 func NewStorageService(conf *conf.Config) *StorageService {
 	if !conf.Cluster {
 		return &StorageService{NewRedisBackend(conf)}
