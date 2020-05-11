@@ -29,22 +29,27 @@ func (s *Handler) SetValues(ctx context.Context, req *pb.SetValuesRequest) (*pb.
 		//meta data should not be cached
 		return &pb.SetValuesResponse{Code:0, Message:"ok"}, nil
 	}
-	mSetMap := map[string]interface{}{}
+	mSetMap := map[string]map[string]interface{}{}
+	log.Println("Set cells for:" + string(req.Cells[0].Row))
 	for _, cell := range req.Cells {
 		// todo: check whether these cells contains stale data(compare timestamp)
-		log.Println("Set cells for:" + string(cell.Row))
 		// encode here
 		timestampBytes := make([]byte, 8)
 		typeBytes := make([]byte, 4)
 		binary.LittleEndian.PutUint64(timestampBytes, uint64(cell.Timestamp))
 		binary.LittleEndian.PutUint32(typeBytes, uint32(cell.Type))
 		merged := append(timestampBytes, typeBytes...)
-		//todo: batch set
-		mSetMap[string(cell.Column)] = string(append(cell.Value, merged...))
+		key := string(append(req.Cells[0].Row, req.Cells[0].ColumnFamily...))
+		if _, ex := mSetMap[key]; !ex {
+			mSetMap[key] = make(map[string]interface{})
+		}
+		mSetMap[key][string(cell.Column)] = string(append(cell.Value, merged...))
 	}
-	err := s.StorageService.HMSet(string(append(req.Cells[0].Row, req.Cells[0].ColumnFamily...)), mSetMap)
-	if err != nil {
-		return nil, err
+	for k, v := range mSetMap {
+		err := s.StorageService.HMSet(k, v)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &pb.SetValuesResponse{Code:0, Message:"ok"}, nil
 }

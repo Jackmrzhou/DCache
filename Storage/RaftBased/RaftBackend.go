@@ -11,6 +11,7 @@ import (
 	"github.com/lni/dragonboat/v3"
 	config2 "github.com/lni/dragonboat/v3/config"
 	"github.com/lni/dragonboat/v3/logger"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -25,6 +26,7 @@ const (
 	// at most four raft groups
 	RowSet = "RowSet"
 )
+
 
 type RaftBackend struct {
 	nh *dragonboat.NodeHost
@@ -46,6 +48,7 @@ func (rb *RaftBackend) Get( key string) (string, error)  {
 	return "", errors.New("return type should be redis.StringCmd")
 }
 
+//Deprecated
 func (rb *RaftBackend) HSet(key, field, value string) error {
 	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
 	cs := rb.nh.GetNoOPSession(ClusterID1)
@@ -68,6 +71,7 @@ func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) error {
 	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
 	cs := rb.nh.GetNoOPSession(ClusterID1)
 	buf := new(bytes.Buffer)
+	gob.Register(map[string]interface{}{})
 	encode := gob.NewEncoder(buf)
 	err := encode.Encode(fields)
 	if err != nil {
@@ -79,11 +83,19 @@ func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) error {
 		buf.Bytes(),
 	}}
 	data, _ := proto.Marshal(proposal)
-	_, err = rb.nh.SyncPropose(ctx, cs, data)
-	if err != nil && strings.Contains(err.Error(), "OOM") {
+	res, err := rb.nh.SyncPropose(ctx, cs, data)
+	if err != nil {
+		// set fields failed
+		return err
+	}
+
+	rowKey := key[:len(key)-1]
+	if res.Value == OOM_ERROR_CODE {
+
 		// out of memory
+		log.Println("achieve memory limitation, start evicting keys....")
 		var keysToDel []string
-		keysToDel = append(keysToDel, key[:len(key)-1])
+		keysToDel = append(keysToDel, rowKey)
 		// get row keys to be deleted
 		ctx, _ = context.WithTimeout(context.Background(), 3*time.Second)
 		res, err := rb.nh.SyncRead(ctx, ClusterID1, []string{"ZCARD", RowSet})
@@ -91,6 +103,7 @@ func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) error {
 			return err
 		}
 		end := res.(int64) / 3
+		log.Println("total ", end+1, " keys to be evicted")
 
 		shortCfs := []string{"g", "h", "i", "e", "f", "s", "t", "m", "l"}
 
@@ -100,10 +113,11 @@ func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) error {
 			if start + count > end {
 				count = end - start
 			}
-			res, err = rb.nh.SyncRead(ctx, ClusterID1, []interface{}{"ZRANGE", RowSet, 0, count})
+			res, err = rb.nh.SyncRead(ctx, ClusterID1, []interface{}{"ZRANGE", RowSet, int64(0), count})
 			if err != nil {
 				return err
 			}
+			log.Println(res)
 			// delete associated hash table from redis
 			ctx, _ = context.WithTimeout(context.Background(), 3*time.Second)
 			cmd := make([][]byte, len(res.([]string)) * len(shortCfs) + 1)
@@ -111,12 +125,12 @@ func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) error {
 			// todo: set deleted in case when part of a row is deleted, and the rest deletions failed
 			for i, val :=range res.([]string) {
 				for j, cf := range shortCfs {
-					cmd[1+i*j] = []byte(val + cf)
+					cmd[1+i*len(shortCfs) + j] = []byte(val + cf)
 				}
 			}
-			proposal = &pb.RaftProposal{Cmds: [][]byte{}}
+			proposal = &pb.RaftProposal{Cmds: cmd}
 			data, _ := proto.Marshal(proposal)
-			_, err = rb.nh.SyncPropose(ctx, cs, data)
+			_, err := rb.nh.SyncPropose(ctx, cs, data)
 			if err != nil {
 				return err
 			}
@@ -125,8 +139,8 @@ func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) error {
 			proposal = &pb.RaftProposal{Cmds: [][]byte{
 				[]byte("ZREMRANGEBYRANK"),
 				[]byte(RowSet),
-				[]byte("0"),
-				[]byte(strconv.FormatInt(end, 10)),
+				[]byte(strconv.FormatInt(start, 10)),
+				[]byte(strconv.FormatInt(count, 10)),
 			}}
 			data, _ = proto.Marshal(proposal)
 			_, err = rb.nh.SyncPropose(ctx, cs, data)
@@ -134,15 +148,22 @@ func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) error {
 				return err
 			}
 		}
-	}
 
-	if err != nil {
-		// set fields failed
-		return err
+		log.Println("evicting keys done!")
+		return errors.New("out of memory, please try again later")
 	}
 
 	// update rank
 	// failure is ignored here as it's insignificant
+	ctx, _ = context.WithTimeout(context.Background(), 3*time.Second)
+	proposal = &pb.RaftProposal{Cmds: [][]byte{
+		[]byte("ZINCRBY"),
+		[]byte(RowSet),
+		[]byte("1"),
+		[]byte(rowKey),
+	}}
+	data, _ = proto.Marshal(proposal)
+	_, err = rb.nh.SyncPropose(ctx, cs, data)
 
 	return nil
 }

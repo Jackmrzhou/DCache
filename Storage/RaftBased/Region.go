@@ -3,8 +3,10 @@ package RaftBased
 import (
 	"Puzzle/conf"
 	pb "Puzzle/idl"
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"github.com/go-redis/redis/v7"
@@ -16,8 +18,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"unsafe"
+)
+
+const (
+	OOM_ERROR_CODE = 4567
 )
 
 type RegionStateMachine struct {
@@ -44,6 +51,8 @@ func (rsm *RegionStateMachine)newRedisInstance(RDBPath string) (*conf.RedisConfi
 		"-p", strconv.FormatUint(10000+generateID(rsm.nodeID, rsm.clusterID), 10)+":"+"6379",
 		"-v", RDBPath+":"+"/data/",
 		"redis",
+		"redis-server",
+		"--maxmemory", conf.GlobalConf.RedisConf.MaxMemory,
 		)
 	log.Println(cmd.String())
 	out, err := cmd.Output()
@@ -62,7 +71,11 @@ func (rsm *RegionStateMachine)newRedisInstance(RDBPath string) (*conf.RedisConfi
 
 func (rsm *RegionStateMachine) closeRedisInstance(id string) error {
 	log.Println("starting closing the redis instances, ID:", id)
-	return exec.Command("docker", "stop", id).Run()
+	cmd := exec.Command("docker", "stop", id)
+	log.Println(cmd.String())
+	err := cmd.Run()
+	log.Println(err)
+	return nil
 }
 
 func NewRegionStateMachine(clusterID uint64, nodeID uint64) sm.IStateMachine {
@@ -108,19 +121,50 @@ func (rsm *RegionStateMachine) Lookup(query interface{}) (interface{}, error) {
 	return nil, errors.New("query should be a slice type")
 }
 
-func (rsm *RegionStateMachine) Update(data []byte) (sm.Result, error) {
+func (rsm *RegionStateMachine) Update(data []byte) (res sm.Result, e error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered in rsm.Update", r)
+			res = sm.Result{}
+			e = errors.New(fmt.Sprint(r))
+		} else if e != nil && strings.Contains(e.Error(), "OOM") {
+			res = sm.Result{
+				Value: OOM_ERROR_CODE,
+			}
+			e = nil
+		}
+	}()
 	proposal := &pb.RaftProposal{}
 	if err := proto.Unmarshal(data, proposal); err != nil {
 		return sm.Result{}, err
 	}
 	args := make([]interface{}, len(proposal.Cmds))
-	for i, val := range proposal.Cmds {
-		args[i] = *(*string)(unsafe.Pointer(&val))
+	if len(args) == 0{
+		return sm.Result{}, nil
 	}
-	if res, err := rsm.db.Do(args...).Result(); err != nil {
+	args[0] = *(*string)(unsafe.Pointer(&proposal.Cmds[0]))
+	switch args[0] {
+	case "HMSET":
+		args[1] = *(*string)(unsafe.Pointer(&proposal.Cmds[1]))
+		buf := bytes.NewBuffer(proposal.Cmds[2])
+		decoder := gob.NewDecoder(buf)
+		m := make(map[string]interface{})
+		err := decoder.Decode(&m)
+		if err != nil {
+			return sm.Result{}, err
+		}
+		_, err = rsm.db.HMSet(args[1].(string), m).Result()
+		return sm.Result{}, err
+	default:
+		for i, val := range proposal.Cmds {
+			args[i] = *(*string)(unsafe.Pointer(&val))
+		}
+	}
+	//log.Println(args...)
+	if _, err := rsm.db.Do(args...).Result(); err != nil {
 		return sm.Result{}, err
 	} else {
-		log.Println(res)
+		//log.Println(res)
 		return sm.Result{}, nil
 	}
 }
