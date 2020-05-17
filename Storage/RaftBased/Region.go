@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 	"unsafe"
 )
 
@@ -33,22 +34,26 @@ type RegionStateMachine struct {
 	db *redis.Client
 	SnapshotPath string
 	redisDockerID string
+	recoverCount uint64
 }
 
-func generateID(nodeID, clusterID uint64) uint64 {
+func generateID(nodeID, clusterID, add uint64) uint64 {
 	// todo
-	return clusterID * 100 + nodeID
+	return clusterID * 100 + nodeID + add*10
 }
 
 func (rsm *RegionStateMachine)newRedisInstance(RDBPath string) (*conf.RedisConfig, error){
 	//todo
 	fmt.Println("starting a new redis instance")
+	var name, port string
+	name = "redis_node" + strconv.FormatUint(generateID(rsm.nodeID, rsm.clusterID, rsm.recoverCount), 10)
+	port = strconv.FormatUint(10000+generateID(rsm.nodeID, rsm.clusterID, rsm.recoverCount), 10) + ":" + "6379"
 	cmd := exec.Command("docker",
 		"run",
 		"-d",
 		"--rm",
-		"--name", "redis_node"+strconv.FormatUint(generateID(rsm.nodeID, rsm.clusterID), 10),
-		"-p", strconv.FormatUint(10000+generateID(rsm.nodeID, rsm.clusterID), 10)+":"+"6379",
+		"--name", name,
+		"-p", port,
 		"-v", RDBPath+":"+"/data/",
 		"redis",
 		"redis-server",
@@ -63,7 +68,7 @@ func (rsm *RegionStateMachine)newRedisInstance(RDBPath string) (*conf.RedisConfi
 	rsm.redisDockerID = string(out)
 	return &conf.RedisConfig{
 		Host:"127.0.0.1",
-		Port:strconv.FormatUint(10000+generateID(rsm.nodeID, rsm.clusterID), 10),
+		Port:strconv.FormatUint(10000+generateID(rsm.nodeID, rsm.clusterID, rsm.recoverCount), 10),
 		Password:"",
 		RDBLocation:RDBPath,
 	}, nil
@@ -173,10 +178,31 @@ func (rsm *RegionStateMachine) SaveSnapshot(w io.Writer,
 	fc sm.ISnapshotFileCollection, done <-chan struct{}) error {
 	// let redis generate the snapshot
 	// todo: use bgsave? or implement the save cmd
-	res, err := rsm.db.Save().Result()
+	lastSave, err := rsm.db.LastSave().Result()
 	if err != nil {
 		return err
 	}
+	res, err := rsm.db.BgSave().Result()
+	if err != nil {
+		return err
+	}
+
+	newLastSave, err := rsm.db.LastSave().Result()
+	if err != nil {
+		return err
+	}
+
+	for {
+		if lastSave != newLastSave{
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+		newLastSave, err = rsm.db.LastSave().Result()
+		if err != nil {
+			return err
+		}
+	}
+
 	log.Println("starting creating snapshot")
 	log.Println(res)
 	f, err := os.Open(filepath.Join(rsm.SnapshotPath, "dump.rdb"))
@@ -200,6 +226,7 @@ func (rsm *RegionStateMachine)RecoverFromSnapshot(r io.Reader,
 	// during the loading, no saving snapshot will happen
 	// so it's safe to use the original one directly
 	oldID := rsm.redisDockerID
+	rsm.recoverCount++
 	c, err := rsm.newRedisInstance(rsm.SnapshotPath)
 	if err != nil {
 		return err

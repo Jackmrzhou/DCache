@@ -1,6 +1,7 @@
 package RaftBased
 
 import (
+	. "Puzzle/Logger"
 	"Puzzle/conf"
 	pb "Puzzle/idl"
 	"bytes"
@@ -10,11 +11,10 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/lni/dragonboat/v3"
 	config2 "github.com/lni/dragonboat/v3/config"
-	"github.com/lni/dragonboat/v3/logger"
-	"log"
-	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -27,9 +27,14 @@ const (
 	RowSet = "RowSet"
 )
 
+var mutex = sync.Mutex{}
+var jobDone = int32(0)
+var staleKeys = sync.Map{}
+
 
 type RaftBackend struct {
 	nh *dragonboat.NodeHost
+	taskRunner *TimedTaskRunner
 }
 
 func (rb *RaftBackend) Set(key, value string, ex int64) error  {
@@ -67,7 +72,12 @@ func (rb *RaftBackend) HSet(key, field, value string) error {
 	return err
 }
 
-func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) error {
+func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) (e error) {
+	defer func() {
+		if e != nil {
+			staleKeys.Store(key[:len(key)-1], true)
+		}
+	}()
 	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
 	cs := rb.nh.GetNoOPSession(ClusterID1)
 	buf := new(bytes.Buffer)
@@ -91,9 +101,19 @@ func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) error {
 
 	rowKey := key[:len(key)-1]
 	if res.Value == OOM_ERROR_CODE {
+		// memory eviction should be only entered once
+		atomic.StoreInt32(&jobDone, 0)
+		mutex.Lock()
+		if jobDone == 1 {
+			Logger.Infof("memory eviction is done by other goroutine.")
+			return errors.New("out of memory, please try again later")
+			// other goroutine has done the job
+		}
+		jobDone = 1
+		defer mutex.Unlock()
 
 		// out of memory
-		log.Println("achieve memory limitation, start evicting keys....")
+		Logger.Infof("achieve memory limitation, start evicting keys....")
 		var keysToDel []string
 		keysToDel = append(keysToDel, rowKey)
 		// get row keys to be deleted
@@ -103,9 +123,7 @@ func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) error {
 			return err
 		}
 		end := res.(int64) / 3
-		log.Println("total ", end+1, " keys to be evicted")
-
-		shortCfs := []string{"g", "h", "i", "e", "f", "s", "t", "m", "l"}
+		Logger.Infof("total %d keys to be evicted", end+1)
 
 		for start := int64(0); start < end; start += 10000 {
 			ctx, _ = context.WithTimeout(context.Background(), 3*time.Second)
@@ -117,21 +135,10 @@ func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) error {
 			if err != nil {
 				return err
 			}
-			log.Println(res)
 			// delete associated hash table from redis
-			ctx, _ = context.WithTimeout(context.Background(), 3*time.Second)
-			cmd := make([][]byte, len(res.([]string)) * len(shortCfs) + 1)
-			cmd[0] = []byte("DEL")
-			// todo: set deleted in case when part of a row is deleted, and the rest deletions failed
-			for i, val :=range res.([]string) {
-				for j, cf := range shortCfs {
-					cmd[1+i*len(shortCfs) + j] = []byte(val + cf)
-				}
-			}
-			proposal = &pb.RaftProposal{Cmds: cmd}
-			data, _ := proto.Marshal(proposal)
-			_, err := rb.nh.SyncPropose(ctx, cs, data)
+			err := rb.DeleteRowKeys(res.([]string))
 			if err != nil {
+				Logger.Errorf(err.Error())
 				return err
 			}
 			// delete from sorted set
@@ -149,7 +156,7 @@ func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) error {
 			}
 		}
 
-		log.Println("evicting keys done!")
+		Logger.Infof("evicting keys done!")
 		return errors.New("out of memory, please try again later")
 	}
 
@@ -180,6 +187,26 @@ func (rb *RaftBackend) HGetAll(key string) (map[string]string, error) {
 	return nil, errors.New("return type should be map[string]string")
 }
 
+func (rb *RaftBackend) DeleteRowKeys(keys []string) error {
+	cs := rb.nh.GetNoOPSession(ClusterID1)
+	shortCfs := []string{"g", "h", "i", "e", "f", "s", "t", "m", "l"}
+	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+	cmd := make([][]byte, len(keys) * len(shortCfs) + 1)
+	cmd[0] = []byte("DEL")
+	for i, val :=range keys {
+		for j, cf := range shortCfs {
+			cmd[1+i*len(shortCfs) + j] = []byte(val + cf)
+		}
+	}
+	proposal := &pb.RaftProposal{Cmds: cmd}
+	data, _ := proto.Marshal(proposal)
+	_, err := rb.nh.SyncPropose(ctx, cs, data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (rb *RaftBackend) Close() error {
 	rb.nh.Stop()
 	return nil
@@ -191,15 +218,12 @@ func NewRaftBackend(config *conf.Config) *RaftBackend {
 		ElectionRTT:10,
 		HeartbeatRTT:2,
 		CheckQuorum:true,
-		SnapshotEntries:5000,
-		CompactionOverhead:500,
+		SnapshotEntries:50000,
+		CompactionOverhead:1000,
 	}
 	initialMembers := config.RaftConf.InitialMembers
 	nodeID := config.RaftConf.NodeID
 	dataDir := config.RaftConf.DataDir
-	// don't read the old state
-	err := os.RemoveAll(dataDir)
-	logger.GetLogger("rsm").Warningf("removeAll", err)
 	nhc :=config2.NodeHostConfig{
 		WALDir:dataDir,
 		NodeHostDir:dataDir,
@@ -217,7 +241,30 @@ func NewRaftBackend(config *conf.Config) *RaftBackend {
 		panic(err)
 	}
 
-	return &RaftBackend{
+	rb := &RaftBackend{
 		nh:nh,
+		taskRunner:&TimedTaskRunner{},
 	}
+
+	rb.taskRunner.SubmitTask(1*time.Second, func() {
+		var keys []string
+		staleKeys.Range(func(key, value interface{}) bool {
+			keys = append(keys, key.(string))
+			return true
+		})
+		if len(keys) != 0 {
+			Logger.Infof("starting removing stale keys...")
+			err := rb.DeleteRowKeys(keys)
+			if err != nil {
+				Logger.Warningf("Removing stale keys failed, err: %v", err)
+				return
+			}
+			for _, k := range keys {
+				staleKeys.Delete(k)
+			}
+			Logger.Infof("removing stale keys done.")
+		}
+	})
+
+	return rb
 }

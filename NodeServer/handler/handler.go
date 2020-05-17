@@ -1,6 +1,7 @@
 package handler
 
 import (
+	. "Puzzle/Logger"
 	"Puzzle/NodeServer/utils"
 	"Puzzle/Storage"
 	pb "Puzzle/idl"
@@ -30,7 +31,7 @@ func (s *Handler) SetValues(ctx context.Context, req *pb.SetValuesRequest) (*pb.
 		return &pb.SetValuesResponse{Code:0, Message:"ok"}, nil
 	}
 	mSetMap := map[string]map[string]interface{}{}
-	log.Println("Set cells for:" + string(req.Cells[0].Row))
+	Logger.Debugf("Set cells for:" + string(req.Cells[0].Row))
 	for _, cell := range req.Cells {
 		// todo: check whether these cells contains stale data(compare timestamp)
 		// encode here
@@ -48,6 +49,7 @@ func (s *Handler) SetValues(ctx context.Context, req *pb.SetValuesRequest) (*pb.
 	for k, v := range mSetMap {
 		err := s.StorageService.HMSet(k, v)
 		if err != nil {
+			Logger.Errorf("SetValues error: %v", err)
 			return nil, err
 		}
 	}
@@ -55,12 +57,13 @@ func (s *Handler) SetValues(ctx context.Context, req *pb.SetValuesRequest) (*pb.
 }
 
 func (s *Handler) GetRow(ctx context.Context, req *pb.GetRowRequest) (*pb.GetRowResponse, error) {
-	log.Println("Get row for key:" + string(req.Key))
+	Logger.Debugf("Get row for key:" + string(req.Key))
 	cfMap := utils.GetShortCfMapCopy()
 	result := make([]*pb.HCell, 0)
 	for _, v := range cfMap{
 		res, err := s.HGetAll(string(req.Key)+v)
 		if err != nil {
+			Logger.Errorf("GetRow error: %v", err)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		if len(res) != 0 {
