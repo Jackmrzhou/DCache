@@ -101,11 +101,12 @@ func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) (e error
 
 	rowKey := key[:len(key)-1]
 	if res.Value == OOM_ERROR_CODE {
+		staleKeys.Store(rowKey, true)
 		// memory eviction should be only entered once
 		atomic.StoreInt32(&jobDone, 0)
 		mutex.Lock()
 		if jobDone == 1 {
-			Logger.Infof("memory eviction is done by other goroutine.")
+			Logger.Infof("memory eviction is done by another goroutine.")
 			return errors.New("out of memory, please try again later")
 			// other goroutine has done the job
 		}
@@ -114,16 +115,17 @@ func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) (e error
 
 		// out of memory
 		Logger.Infof("achieve memory limitation, start evicting keys....")
-		var keysToDel []string
-		keysToDel = append(keysToDel, rowKey)
-		// get row keys to be deleted
 		ctx, _ = context.WithTimeout(context.Background(), 3*time.Second)
-		res, err := rb.nh.SyncRead(ctx, ClusterID1, []string{"ZCARD", RowSet})
+		total, err := rb.nh.SyncRead(ctx, ClusterID1, []string{"ZCARD", RowSet})
 		if err != nil {
 			return err
 		}
-		end := res.(int64) / 3
+		end := total.(int64) / 3
 		Logger.Infof("total %d keys to be evicted", end+1)
+		res, err := rb.nh.SyncRead(ctx, ClusterID1, []interface{}{"ZRANGE", RowSet, int64(0), total})
+		if err != nil {
+			return err
+		}
 
 		for start := int64(0); start < end; start += 10000 {
 			ctx, _ = context.WithTimeout(context.Background(), 3*time.Second)
@@ -131,12 +133,9 @@ func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) (e error
 			if start + count > end {
 				count = end - start
 			}
-			res, err = rb.nh.SyncRead(ctx, ClusterID1, []interface{}{"ZRANGE", RowSet, int64(0), count})
-			if err != nil {
-				return err
-			}
+
 			// delete associated hash table from redis
-			err := rb.DeleteRowKeys(res.([]string))
+			err := rb.DeleteRowKeys(res.([]string)[start:start+count])
 			if err != nil {
 				Logger.Errorf(err.Error())
 				return err
@@ -155,22 +154,22 @@ func (rb *RaftBackend) HMSet(key string, fields map[string]interface{}) (e error
 				return err
 			}
 		}
-
 		Logger.Infof("evicting keys done!")
 		return errors.New("out of memory, please try again later")
 	}
-
-	// update rank
-	// failure is ignored here as it's insignificant
-	ctx, _ = context.WithTimeout(context.Background(), 3*time.Second)
-	proposal = &pb.RaftProposal{Cmds: [][]byte{
-		[]byte("ZINCRBY"),
-		[]byte(RowSet),
-		[]byte("1"),
-		[]byte(rowKey),
-	}}
-	data, _ = proto.Marshal(proposal)
-	_, err = rb.nh.SyncPropose(ctx, cs, data)
+    go func() {
+		// update rank
+		// failure is ignored here as it's insignificant
+		ctx, _ = context.WithTimeout(context.Background(), 3*time.Second)
+		proposal = &pb.RaftProposal{Cmds: [][]byte{
+			[]byte("ZINCRBY"),
+			[]byte(RowSet),
+			[]byte("1"),
+			[]byte(rowKey),
+		}}
+		data, _ = proto.Marshal(proposal)
+		_, err = rb.nh.SyncPropose(ctx, cs, data)
+	}()
 
 	return nil
 }
@@ -182,6 +181,22 @@ func (rb *RaftBackend) HGetAll(key string) (map[string]string, error) {
 		return nil, err
 	}
 	if v, ok := res.(map[string]string); ok {
+		if len(v) != 0 {
+			// cache hit
+			go func() {
+				// update rank
+				ctx, _ = context.WithTimeout(context.Background(), 3*time.Second)
+				proposal := &pb.RaftProposal{Cmds: [][]byte{
+					[]byte("ZINCRBY"),
+					[]byte(RowSet),
+					[]byte("1"),
+					[]byte(key[:len(key)-1]),
+				}}
+				cs := rb.nh.GetNoOPSession(ClusterID1)
+				data, _ := proto.Marshal(proposal)
+				_, err = rb.nh.SyncPropose(ctx, cs, data)
+			}()
+		}
 		return v, nil
 	}
 	return nil, errors.New("return type should be map[string]string")

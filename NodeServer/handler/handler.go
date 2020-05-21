@@ -10,6 +10,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"log"
+	"sync"
+	"sync/atomic"
 )
 
 type Handler struct {
@@ -46,22 +48,52 @@ func (s *Handler) SetValues(ctx context.Context, req *pb.SetValuesRequest) (*pb.
 		}
 		mSetMap[key][string(cell.Column)] = string(append(cell.Value, merged...))
 	}
+	var wg sync.WaitGroup
+	var eVal atomic.Value
 	for k, v := range mSetMap {
-		err := s.StorageService.HMSet(k, v)
-		if err != nil {
-			Logger.Errorf("SetValues error: %v", err)
-			return nil, err
-		}
+		go func() {
+			wg.Add(1)
+			defer wg.Done()
+			err := s.StorageService.HMSet(k, v)
+			if err != nil {
+				Logger.Errorf("SetValues error: %v", err)
+				eVal.Store(err)
+			}
+		}()
+	}
+	wg.Wait()
+	if eVal.Load() != nil {
+		return nil, (eVal.Load()).(error)
 	}
 	return &pb.SetValuesResponse{Code:0, Message:"ok"}, nil
+}
+
+type compRes struct {
+	val map[string]string
+	err error
+	cf string
 }
 
 func (s *Handler) GetRow(ctx context.Context, req *pb.GetRowRequest) (*pb.GetRowResponse, error) {
 	Logger.Debugf("Get row for key:" + string(req.Key))
 	cfMap := utils.GetShortCfMapCopy()
 	result := make([]*pb.HCell, 0)
+	resChan := make(chan compRes, len(cfMap))
 	for _, v := range cfMap{
-		res, err := s.HGetAll(string(req.Key)+v)
+		go func() {
+			res, err := s.HGetAll(string(req.Key) + v)
+			resChan <- compRes{res, err,v }
+		}()
+
+	}
+
+	for i:=0; i < len(cfMap); i++ {
+		cRes := <-resChan
+		res := cRes.val
+		err := cRes.err
+		if err != nil && err.Error() == "deleting"{
+			return &pb.GetRowResponse{Code:1, Result:nil, Message:"no records in cache"}, nil
+		}
 		if err != nil {
 			Logger.Errorf("GetRow error: %v", err)
 			return nil, status.Error(codes.Internal, err.Error())
@@ -78,7 +110,7 @@ func (s *Handler) GetRow(ctx context.Context, req *pb.GetRowRequest) (*pb.GetRow
 				}
 				result = append(result, &pb.HCell{
 					Row:req.Key,
-					ColumnFamily: []byte(v),
+					ColumnFamily: []byte(cRes.cf),
 					Column:[]byte(col),
 					Value:val[0: len(val) - 12],
 					Timestamp: int64(binary.LittleEndian.Uint64(timestampBytes)),
